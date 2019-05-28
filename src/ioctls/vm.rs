@@ -22,6 +22,8 @@ use ioctls::KvmRunWrapper;
 use kvm_ioctls::*;
 use sys_ioctl::*;
 
+pub const NUM_IOAPIC_PINS: usize = 24;
+
 /// An address either in programmable I/O space or in memory mapped I/O space.
 ///
 /// The `IoEventAddress` is used for specifying the type when registering an event
@@ -168,6 +170,28 @@ impl VmFd {
         } else {
             Err(io::Error::last_os_error())
         }
+    }
+
+    /// Enable the specified capability.
+    /// See documentation for KVM_ENABLE_CAP.
+    pub fn enable_cap(&self, cap: &kvm_enable_cap) -> Result<()> {
+        // safe because we allocated the struct and we know the kernel will read
+        // exactly the size of the struct
+        let ret = unsafe { ioctl_with_ref(self, KVM_ENABLE_CAP(), cap) };
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
+        }
+    }
+
+    /// (x86-only): Enable support for split-irqchip.
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    pub fn create_split_irq_chip(&self) -> Result<()> {
+        let mut cap: kvm_enable_cap = Default::default();
+        cap.cap = KVM_CAP_SPLIT_IRQCHIP;
+        cap.args[0] = NUM_IOAPIC_PINS as u64;
+        self.enable_cap(&cap)
     }
 
     /// Creates a PIT as per the `KVM_CREATE_PIT2` ioctl.
@@ -634,7 +658,7 @@ impl AsRawFd for VmFd {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use {Cap, Kvm};
+    use {Cap, Kvm, MAX_KVM_CPUID_ENTRIES};
 
     use libc::{eventfd, EFD_NONBLOCK};
 
@@ -740,6 +764,10 @@ mod tests {
         assert!(vm_fd.register_irqfd(evtfd3, 5).is_err());
     }
 
+    fn get_raw_errno<T>(result: super::Result<T>) -> i32 {
+        result.err().unwrap().raw_os_error().unwrap()
+    }
+
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn test_faulty_vm_fd() {
@@ -757,10 +785,6 @@ mod tests {
             userspace_addr: 0,
             flags: 0,
         };
-
-        fn get_raw_errno<T>(result: super::Result<T>) -> i32 {
-            result.err().unwrap().raw_os_error().unwrap()
-        }
 
         assert_eq!(
             get_raw_errno(unsafe { faulty_vm_fd.set_user_memory_region(invalid_mem_region) }),
