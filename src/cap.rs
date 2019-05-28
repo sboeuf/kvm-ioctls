@@ -23,6 +23,8 @@ use kvm_bindings::*;
 #[allow(missing_docs)]
 pub enum Cap {
     Irqchip = KVM_CAP_IRQCHIP,
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    SplitIrqchip = KVM_CAP_SPLIT_IRQCHIP,
     Hlt = KVM_CAP_HLT,
     MmuShadowCacheControl = KVM_CAP_MMU_SHADOW_CACHE_CONTROL,
     UserMemory = KVM_CAP_USER_MEMORY,
