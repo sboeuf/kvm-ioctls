@@ -214,6 +214,20 @@ impl VmFd {
         }
     }
 
+    /// Request that the kernel inject the specified MSI message.
+    /// Returns Ok(true) on delivery, Ok(false) if the guest blocked delivery, or an error.
+    /// See kernel documentation for KVM_SIGNAL_MSI.
+    pub fn signal_msi(&self, msi: &kvm_msi) -> Result<()> {
+        // safe becuase we allocated the struct and we know the kernel will read
+        // exactly the size of the struct
+        let ret = unsafe { ioctl_with_ref(self, KVM_SIGNAL_MSI(), msi) };
+        if ret != -1 {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
+        }
+    }
+
     /// Registers an event to be signaled whenever a certain address is written to.
     ///
     /// See the documentation for `KVM_IOEVENTFD`.
@@ -532,7 +546,7 @@ impl VmFd {
         if ret == 0 {
             Ok(new_device(unsafe { File::from_raw_fd(device.fd as i32) }))
         } else {
-            return Err(io::Error::last_os_error());
+            Err(io::Error::last_os_error())
         }
     }
 
@@ -568,6 +582,14 @@ impl VmFd {
             return Err(io::Error::last_os_error());
         }
         Ok(())
+    }
+
+    /// Clone the VmFd.
+    pub fn try_clone(&self) -> Self {
+        let vm = self.vm.try_clone().unwrap();
+        let run_size = self.run_size;
+
+        VmFd { vm, run_size }
     }
 
     /// Get the `kvm_run` size.
