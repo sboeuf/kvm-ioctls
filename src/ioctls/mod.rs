@@ -36,6 +36,15 @@ pub struct KvmRunWrapper {
     mmap_size: usize,
 }
 
+impl std::clone::Clone for KvmRunWrapper {
+    fn clone(&self) -> Self {
+        KvmRunWrapper {
+            kvm_run_ptr: self.kvm_run_ptr,
+            mmap_size: self.mmap_size,
+        }
+    }
+}
+
 // Send and Sync aren't automatically inherited for the raw address pointer.
 // Accessing that pointer is only done through the stateless interface which
 // allows the object to be shared by multiple threads without a decrease in
