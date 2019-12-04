@@ -100,6 +100,15 @@ pub struct VcpuFd {
     kvm_run_ptr: KvmRunWrapper,
 }
 
+impl std::clone::Clone for VcpuFd {
+    fn clone(&self) -> Self {
+        VcpuFd {
+            vcpu: self.vcpu.try_clone().unwrap(),
+            kvm_run_ptr: self.kvm_run_ptr.clone(),
+        }
+    }
+}
+
 impl VcpuFd {
     /// Returns the vCPU general purpose registers.
     ///
