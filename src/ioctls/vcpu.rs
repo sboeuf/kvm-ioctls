@@ -1032,6 +1032,7 @@ impl VcpuFd {
     /// itself or when a soft lockup is detected.  This ioctl can be called any time
     /// after pausing the vcpu, but before it is resumed.
     ///
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     pub fn kvmclock_ctrl(&self) -> Result<()> {
         // Safe because we know that our file is a KVM fd and that the request
         // is one of the ones defined by kernel.
